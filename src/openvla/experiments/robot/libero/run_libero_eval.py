@@ -58,6 +58,16 @@ class GenerateConfig:
 
     # Use VLA-Cache for faster inference
     use_vla_cache: bool = True
+    use_motion_compensated_cache: bool = False       # If True, replace same-grid static patch detection with 2D motion compensation
+    mc_enable_kv_remap: bool = False                 # Experimental: remap DynamicCache visual KV slots when supported
+    mc_patch_size: int = 14                          # ViT patch size used by OpenVLA's 224x224 image path
+    mc_top_k: int = 130                              # Max motion-compensated candidate patches before attention veto
+    mc_task_top_k: int = 120                         # Attention top-k patches excluded from reuse
+    mc_search_radius: int = 28                       # Pixel search radius for global prev->current translation
+    mc_search_step: int = 2                          # Pixel step for global translation search
+    mc_min_confidence: float = 0.30                  # Patch-overlap confidence gate after translation compensation
+    mc_similarity_threshold: float = 0.70            # RGB patch similarity gate after compensation
+    mc_samples_per_axis: int = 5                     # Per-patch correspondence sampling density
     
     #################################################################################################################
     # Model-specific parameters
@@ -87,6 +97,7 @@ class GenerateConfig:
     wandb_entity: str = "YOUR_WANDB_ENTITY"          # Name of entity to log under
 
     seed: int = 7                                    # Random Seed (for reproducibility)
+    num_tasks_to_eval: Optional[int] = None           # Optional smoke-test limit for task count
 
     # fmt: on
 
@@ -149,7 +160,12 @@ def eval_libero(cfg: GenerateConfig) -> None:
 
     # Start evaluation
     total_episodes, total_successes = 0, 0
-    for task_id in tqdm.tqdm(range(num_tasks_in_suite)):
+    if cfg.num_tasks_to_eval is None:
+        task_ids = range(num_tasks_in_suite)
+    else:
+        task_ids = range(min(num_tasks_in_suite, cfg.num_tasks_to_eval))
+
+    for task_id in tqdm.tqdm(task_ids):
         # Get task
         task = task_suite.get_task(task_id)
 
@@ -177,6 +193,10 @@ def eval_libero(cfg: GenerateConfig) -> None:
             replay_images_heatmap = []
             prev_img = None
             last_caches = None
+            episode_mc_steps = 0
+            episode_mc_reuse_tokens = 0
+            episode_mc_candidates = 0
+            episode_mc_kv_remap_steps = 0
             
             
             if cfg.task_suite_name == "libero_spatial":
@@ -233,6 +253,12 @@ def eval_libero(cfg: GenerateConfig) -> None:
                         processor=processor,
                         last_caches=last_caches,
                     )
+                    mc_metrics = last_caches.get("mc_metrics", {}) if last_caches is not None else {}
+                    if mc_metrics.get("cache_mode") in {"original_grid", "motion_compensated_2d"}:
+                        episode_mc_steps += 1
+                        episode_mc_reuse_tokens += int(mc_metrics.get("num_mc_reuse_tokens", 0))
+                        episode_mc_candidates += int(mc_metrics.get("num_mc_candidates", 0))
+                        episode_mc_kv_remap_steps += int(bool(mc_metrics.get("mc_kv_remap_applied", False)))
                     replay_images_heatmap.append(result_image)
                     # imageio.imwrite(f"rollouts/live_image.png", result_image)
 
@@ -270,9 +296,25 @@ def eval_libero(cfg: GenerateConfig) -> None:
             print(f"Success: {done}")
             print(f"# episodes completed so far: {total_episodes}")
             print(f"# successes: {total_successes} ({total_successes / total_episodes * 100:.1f}%)")
+            if episode_mc_steps > 0:
+                avg_reuse_ratio = episode_mc_reuse_tokens / (episode_mc_steps * 256)
+                avg_candidates = episode_mc_candidates / episode_mc_steps
+                print(
+                    "MC/VLA-Cache stats: "
+                    f"steps={episode_mc_steps}, avg_reuse_ratio={avg_reuse_ratio:.3f}, "
+                    f"avg_candidates={avg_candidates:.1f}, kv_remap_steps={episode_mc_kv_remap_steps}"
+                )
             log_file.write(f"Success: {done}\n")
             log_file.write(f"# episodes completed so far: {total_episodes}\n")
             log_file.write(f"# successes: {total_successes} ({total_successes / total_episodes * 100:.1f}%)\n")
+            if episode_mc_steps > 0:
+                avg_reuse_ratio = episode_mc_reuse_tokens / (episode_mc_steps * 256)
+                avg_candidates = episode_mc_candidates / episode_mc_steps
+                log_file.write(
+                    "MC/VLA-Cache stats: "
+                    f"steps={episode_mc_steps}, avg_reuse_ratio={avg_reuse_ratio:.3f}, "
+                    f"avg_candidates={avg_candidates:.1f}, kv_remap_steps={episode_mc_kv_remap_steps}\n"
+                )
             log_file.flush()
 
         # Log final results

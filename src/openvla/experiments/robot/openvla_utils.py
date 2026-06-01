@@ -21,6 +21,10 @@ from prismatic.extern.hf.modeling_prismatic import OpenVLAForActionPrediction
 from prismatic.extern.hf.processing_prismatic import PrismaticImageProcessor, PrismaticProcessor
 
 from .vla_cache_utils import find_static_patches, task_relevant_selection, get_layer_mask_schedule
+from .motion_compensation import (
+    find_motion_compensated_static_patches,
+    remap_visual_kv_cache,
+)
 
 from transformers import DynamicCache
 
@@ -378,7 +382,19 @@ def get_vla_action(cfg, vla, processor, base_vla_name, obs, task_label, unnorm_k
     prompt_cache = last_caches['past_key_values'] if last_caches is not None else None
     prev_attn = last_caches['attentions'] if last_caches is not None else None
     mask_indices = None
+    stable_patches = []
+    source_by_target = {}
+    cache_metrics = {
+        "cache_mode": "disabled",
+        "num_mc_reuse_tokens": 0,
+        "num_mc_candidates": 0,
+        "mc_shift_x": 0,
+        "mc_shift_y": 0,
+        "mc_shift_score": 0.0,
+        "mc_kv_remap_applied": False,
+    }
     vla.language_model.config.proportion_attn_var = None
+    vla.language_model.config.reusable_patches = None
 
 
     # (If trained with image augmentations) Center crop image and then resize back up to original size.
@@ -389,19 +405,69 @@ def get_vla_action(cfg, vla, processor, base_vla_name, obs, task_label, unnorm_k
         prev_image = process_image(prev_image)
 
     if cfg.use_vla_cache:
-        print(">> VLA-Cache inference mode")
+        use_mc_cache = getattr(cfg, "use_motion_compensated_cache", False)
+        if use_mc_cache:
+            print(">> Motion-Compensated VLA-Cache inference mode")
+        else:
+            print(">> VLA-Cache inference mode")
+
         # Step 1: Identify visually stable patches across frames
         if prompt_cache is not None:
-            stable_patches = find_static_patches(image, prev_image, top_k=130)
+            if use_mc_cache:
+                mc_corr = find_motion_compensated_static_patches(
+                    image,
+                    prev_image,
+                    patch_size=getattr(cfg, "mc_patch_size", 14),
+                    top_k=getattr(cfg, "mc_top_k", 130),
+                    search_radius=getattr(cfg, "mc_search_radius", 28),
+                    search_step=getattr(cfg, "mc_search_step", 2),
+                    min_confidence=getattr(cfg, "mc_min_confidence", 0.30),
+                    sim_threshold=getattr(cfg, "mc_similarity_threshold", 0.70),
+                    samples_per_axis=getattr(cfg, "mc_samples_per_axis", 5),
+                )
+                stable_patches = mc_corr.target_patches
+                source_by_target = mc_corr.source_for_target()
+                cache_metrics.update(
+                    {
+                        "cache_mode": "motion_compensated_2d",
+                        "num_mc_candidates": len(stable_patches),
+                        "mc_shift_x": mc_corr.shift_xy[0],
+                        "mc_shift_y": mc_corr.shift_xy[1],
+                        "mc_shift_score": mc_corr.score,
+                    }
+                )
+            else:
+                mc_corr = None
+                stable_patches = find_static_patches(image, prev_image, top_k=130)
+                cache_metrics.update({"cache_mode": "original_grid", "num_mc_candidates": len(stable_patches)})
 
         # Step 2: Use prior attention to filter out task-relevant tokens
         if prev_attn is not None:
             result_image, remaining_static_tokens_indices = task_relevant_selection(
-                prev_attn, image, stable_patches
+                prev_attn, image, stable_patches, top_k=getattr(cfg, "mc_task_top_k", 120)
             )
 
             # Step 3: Merge remaining static token indices and update model config
-            mask_indices = torch.tensor(remaining_static_tokens_indices, device=DEVICE) if remaining_static_tokens_indices else None
+            if use_mc_cache:
+                # remaining_static_tokens_indices are absolute current token IDs.
+                # Convert them back to patch IDs to look up previous-frame source patches.
+                target_token_indices = []
+                source_token_indices = []
+                for token_idx in remaining_static_tokens_indices:
+                    patch_id = int(token_idx) - 1
+                    if patch_id not in source_by_target:
+                        continue
+                    target_token_indices.append(int(token_idx))
+                    source_token_indices.append(int(source_by_target[patch_id]) + 1)
+
+                mask_indices = torch.tensor(target_token_indices, device=DEVICE) if target_token_indices else None
+                if getattr(cfg, "mc_enable_kv_remap", False):
+                    remap_applied = remap_visual_kv_cache(prompt_cache, target_token_indices, source_token_indices)
+                    cache_metrics["mc_kv_remap_applied"] = bool(remap_applied)
+                cache_metrics["num_mc_reuse_tokens"] = len(target_token_indices)
+            else:
+                mask_indices = torch.tensor(remaining_static_tokens_indices, device=DEVICE) if remaining_static_tokens_indices else None
+                cache_metrics["num_mc_reuse_tokens"] = len(remaining_static_tokens_indices)
 
             vla.language_model.config.reusable_patches = mask_indices
             vla.language_model.config.proportion_attn_var = get_layer_mask_schedule(prev_attn)
@@ -428,6 +494,7 @@ def get_vla_action(cfg, vla, processor, base_vla_name, obs, task_label, unnorm_k
     # Get action.
     action, last_caches = vla.predict_action(**inputs, unnorm_key=unnorm_key, do_sample=False, return_dict_in_generate=True, 
                                                         output_attentions = True, past_key_values=prompt_cache)
+    last_caches["mc_metrics"] = cache_metrics
    
     result_image = np.array(result_image)
     return action, last_caches, result_image

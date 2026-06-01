@@ -1,0 +1,40 @@
+{
+  "seed": 11,
+  "frames": 8,
+  "height": 224,
+  "width": 224,
+  "patch_size": 14,
+  "token_dim": 64,
+  "kv_dim": 64,
+  "action_dim": 7,
+  "num_layers": 12,
+  "output_root": "Experiments/motion_compensated_vla_cache/outputs",
+  "run_name": "default",
+  "scenarios": [
+    "static_cam",
+    "pan_tilt",
+    "translate_xy",
+    "wrist_like",
+    "dynamic_object"
+  ],
+  "methods": [
+    "original_grid",
+    "mc_token",
+    "mc_kv_no_rope",
+    "mc_kv_rope"
+  ],
+  "similarity_thresholds": [
+    0.90,
+    0.94,
+    0.97,
+    0.99
+  ],
+  "mc_min_conf": 0.50,
+  "mc_min_coverage": 0.30,
+  "depth_tolerance": 0.10,
+  "mc_similarity_threshold": 0.20,
+  "task_veto_ratio": 0.20,
+  "early_recompute_layers": 2,
+  "debug_scenario": "translate_xy",
+  "debug_pair": 3
+}

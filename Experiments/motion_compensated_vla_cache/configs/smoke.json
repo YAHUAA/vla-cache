@@ -1,0 +1,35 @@
+{
+  "seed": 7,
+  "frames": 5,
+  "height": 112,
+  "width": 112,
+  "patch_size": 14,
+  "token_dim": 32,
+  "kv_dim": 32,
+  "action_dim": 7,
+  "num_layers": 6,
+  "output_root": "Experiments/motion_compensated_vla_cache/outputs",
+  "run_name": "smoke",
+  "scenarios": [
+    "pan_tilt",
+    "translate_xy"
+  ],
+  "methods": [
+    "original_grid",
+    "mc_token",
+    "mc_kv_no_rope",
+    "mc_kv_rope"
+  ],
+  "similarity_thresholds": [
+    0.94,
+    0.97
+  ],
+  "mc_min_conf": 0.50,
+  "mc_min_coverage": 0.30,
+  "depth_tolerance": 0.12,
+  "mc_similarity_threshold": 0.20,
+  "task_veto_ratio": 0.18,
+  "early_recompute_layers": 1,
+  "debug_scenario": "translate_xy",
+  "debug_pair": 2
+}
