@@ -10,10 +10,12 @@ CHECKPOINT="${CHECKPOINT:-/mnt/data0/zjh_data/Embodied_Proj/checkpoints/openvla-
 TRIALS="${TRIALS:-1}"
 TASKS="${TASKS:-1}"
 RUN_ID_NOTE="${RUN_ID_NOTE:-orig-grid-cache-smoke}"
+CAMERA="${CAMERA:-agentview}"
 
 python experiments/robot/libero/run_libero_eval.py \
   --pretrained_checkpoint "${CHECKPOINT}" \
   --task_suite_name libero_spatial \
+  --camera_name "${CAMERA}" \
   --num_trials_per_task "${TRIALS}" \
   --num_tasks_to_eval "${TASKS}" \
   --use_vla_cache True \

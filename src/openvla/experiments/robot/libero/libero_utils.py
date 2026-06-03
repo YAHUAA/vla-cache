@@ -15,11 +15,16 @@ from experiments.robot.robot_utils import (
 )
 
 
-def get_libero_env(task, model_family, resolution=256):
+def get_libero_env(task, model_family, resolution=256, camera_name="agentview"):
     """Initializes and returns the LIBERO environment, along with the task description."""
     task_description = task.language
     task_bddl_file = os.path.join(get_libero_path("bddl_files"), task.problem_folder, task.bddl_file)
-    env_args = {"bddl_file_name": task_bddl_file, "camera_heights": resolution, "camera_widths": resolution}
+    env_args = {
+        "bddl_file_name": task_bddl_file,
+        "camera_heights": resolution,
+        "camera_widths": resolution,
+        "camera_names": [camera_name],
+    }
     env = OffScreenRenderEnv(**env_args)
     env.seed(0)  # IMPORTANT: seed seems to affect object positions even when using fixed initial state
     return env, task_description
@@ -47,12 +52,16 @@ def resize_image(img, resize_size):
     return img
 
 
-def get_libero_image(obs, resize_size):
+def get_libero_image(obs, resize_size, camera_name="agentview"):
     """Extracts image from observations and preprocesses it."""
     assert isinstance(resize_size, int) or isinstance(resize_size, tuple)
     if isinstance(resize_size, int):
         resize_size = (resize_size, resize_size)
-    img = obs["agentview_image"]
+    image_key = f"{camera_name}_image"
+    if image_key not in obs:
+        image_keys = sorted(key for key in obs.keys() if key.endswith("_image"))
+        raise KeyError(f"Observation key {image_key!r} not found. Available image keys: {image_keys}")
+    img = obs[image_key]
     img = img[::-1, ::-1]  # IMPORTANT: rotate 180 degrees to match train preprocessing
     img = resize_image(img, resize_size)
     return img

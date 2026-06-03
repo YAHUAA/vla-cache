@@ -19,6 +19,7 @@ Usage:
 
 import os
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Union
@@ -26,6 +27,7 @@ from typing import Optional, Union
 import imageio
 import draccus
 import numpy as np
+import torch
 import tqdm
 from libero.libero import benchmark
 
@@ -83,6 +85,7 @@ class GenerateConfig:
     # LIBERO environment-specific parameters
     #################################################################################################################
     task_suite_name: str = "libero_spatial"          # Task suite. Options: libero_spatial, libero_object, libero_goal, libero_10, libero_90
+    camera_name: str = "agentview"                   # LIBERO camera name, e.g. agentview or robot0_eye_in_hand
     num_steps_wait: int = 10                         # Number of steps to wait for objects to stabilize in sim
     num_trials_per_task: int = 50                    # Number of rollouts per task
 
@@ -153,7 +156,9 @@ def eval_libero(cfg: GenerateConfig) -> None:
     task_suite = benchmark_dict[cfg.task_suite_name]()
     num_tasks_in_suite = task_suite.n_tasks
     print(f"Task suite: {cfg.task_suite_name}")
+    print(f"Camera: {cfg.camera_name}")
     log_file.write(f"Task suite: {cfg.task_suite_name}\n")
+    log_file.write(f"Camera: {cfg.camera_name}\n")
 
     # Get expected image dimensions
     resize_size = get_image_resize_size(cfg)
@@ -173,7 +178,12 @@ def eval_libero(cfg: GenerateConfig) -> None:
         initial_states = task_suite.get_task_init_states(task_id)
 
         # Initialize LIBERO environment and task description
-        env, task_description = get_libero_env(task, cfg.model_family, resolution=256)
+        env, task_description = get_libero_env(
+            task,
+            cfg.model_family,
+            resolution=256,
+            camera_name=cfg.camera_name,
+        )
 
         # Start episodes
         task_episodes, task_successes = 0, 0
@@ -197,6 +207,9 @@ def eval_libero(cfg: GenerateConfig) -> None:
             episode_mc_reuse_tokens = 0
             episode_mc_candidates = 0
             episode_mc_kv_remap_steps = 0
+            episode_mc_shift_abs = 0.0
+            episode_mc_shift_score = 0.0
+            episode_latency_ms = []
             
             
             if cfg.task_suite_name == "libero_spatial":
@@ -222,7 +235,7 @@ def eval_libero(cfg: GenerateConfig) -> None:
                         continue
 
                     # Get preprocessed image
-                    img = get_libero_image(obs, resize_size)
+                    img = get_libero_image(obs, resize_size, camera_name=cfg.camera_name)
 
                     # Save previous image
                     if prev_img is None:
@@ -245,6 +258,9 @@ def eval_libero(cfg: GenerateConfig) -> None:
 
 
                     # Query model to get action
+                    if torch.cuda.is_available():
+                        torch.cuda.synchronize()
+                    action_start_time = time.perf_counter()
                     action, last_caches, result_image = get_action(
                         cfg,
                         model,
@@ -253,12 +269,19 @@ def eval_libero(cfg: GenerateConfig) -> None:
                         processor=processor,
                         last_caches=last_caches,
                     )
+                    if torch.cuda.is_available():
+                        torch.cuda.synchronize()
+                    episode_latency_ms.append((time.perf_counter() - action_start_time) * 1000.0)
                     mc_metrics = last_caches.get("mc_metrics", {}) if last_caches is not None else {}
                     if mc_metrics.get("cache_mode") in {"original_grid", "motion_compensated_2d"}:
                         episode_mc_steps += 1
                         episode_mc_reuse_tokens += int(mc_metrics.get("num_mc_reuse_tokens", 0))
                         episode_mc_candidates += int(mc_metrics.get("num_mc_candidates", 0))
                         episode_mc_kv_remap_steps += int(bool(mc_metrics.get("mc_kv_remap_applied", False)))
+                        episode_mc_shift_abs += abs(float(mc_metrics.get("mc_shift_x", 0))) + abs(
+                            float(mc_metrics.get("mc_shift_y", 0))
+                        )
+                        episode_mc_shift_score += float(mc_metrics.get("mc_shift_score", 0.0))
                     replay_images_heatmap.append(result_image)
                     # imageio.imwrite(f"rollouts/live_image.png", result_image)
 
@@ -299,10 +322,20 @@ def eval_libero(cfg: GenerateConfig) -> None:
             if episode_mc_steps > 0:
                 avg_reuse_ratio = episode_mc_reuse_tokens / (episode_mc_steps * 256)
                 avg_candidates = episode_mc_candidates / episode_mc_steps
+                avg_shift_abs = episode_mc_shift_abs / episode_mc_steps
+                avg_shift_score = episode_mc_shift_score / episode_mc_steps
                 print(
                     "MC/VLA-Cache stats: "
                     f"steps={episode_mc_steps}, avg_reuse_ratio={avg_reuse_ratio:.3f}, "
-                    f"avg_candidates={avg_candidates:.1f}, kv_remap_steps={episode_mc_kv_remap_steps}"
+                    f"avg_candidates={avg_candidates:.1f}, kv_remap_steps={episode_mc_kv_remap_steps}, "
+                    f"avg_shift_l1_px={avg_shift_abs:.2f}, avg_shift_score={avg_shift_score:.3f}"
+                )
+            if episode_latency_ms:
+                latency = np.asarray(episode_latency_ms, dtype=np.float64)
+                print(
+                    "Action latency ms: "
+                    f"mean={latency.mean():.1f}, p50={np.percentile(latency, 50):.1f}, "
+                    f"p90={np.percentile(latency, 90):.1f}, std={latency.std():.1f}, n={latency.size}"
                 )
             log_file.write(f"Success: {done}\n")
             log_file.write(f"# episodes completed so far: {total_episodes}\n")
@@ -310,10 +343,20 @@ def eval_libero(cfg: GenerateConfig) -> None:
             if episode_mc_steps > 0:
                 avg_reuse_ratio = episode_mc_reuse_tokens / (episode_mc_steps * 256)
                 avg_candidates = episode_mc_candidates / episode_mc_steps
+                avg_shift_abs = episode_mc_shift_abs / episode_mc_steps
+                avg_shift_score = episode_mc_shift_score / episode_mc_steps
                 log_file.write(
                     "MC/VLA-Cache stats: "
                     f"steps={episode_mc_steps}, avg_reuse_ratio={avg_reuse_ratio:.3f}, "
-                    f"avg_candidates={avg_candidates:.1f}, kv_remap_steps={episode_mc_kv_remap_steps}\n"
+                    f"avg_candidates={avg_candidates:.1f}, kv_remap_steps={episode_mc_kv_remap_steps}, "
+                    f"avg_shift_l1_px={avg_shift_abs:.2f}, avg_shift_score={avg_shift_score:.3f}\n"
+                )
+            if episode_latency_ms:
+                latency = np.asarray(episode_latency_ms, dtype=np.float64)
+                log_file.write(
+                    "Action latency ms: "
+                    f"mean={latency.mean():.1f}, p50={np.percentile(latency, 50):.1f}, "
+                    f"p90={np.percentile(latency, 90):.1f}, std={latency.std():.1f}, n={latency.size}\n"
                 )
             log_file.flush()
 
