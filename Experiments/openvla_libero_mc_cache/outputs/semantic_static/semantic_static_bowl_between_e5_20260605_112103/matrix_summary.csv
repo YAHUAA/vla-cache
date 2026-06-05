@@ -1,0 +1,3 @@
+method,task_ids,successes,episodes,success_rate,latency_ms_mean,avg_reuse_ratio,avg_candidates,kv_remap_steps,local_log_filepath
+full_recompute,0,5,5,1.0,352.8925461399435,,,0,/mnt/data0/zjh_data/Embodied_Proj/experiments/vla_cache_semantic_static/semantic_static_bowl_between_e5_20260605_112103/logs/EVAL-libero_spatial-openvla-2026_06_05-11_21_30--semantic_static_bowl_between_e5_20260605_112103-full_recompute.txt
+original_cache,0,5,5,1.0,363.04944687927104,0.3148735119047619,130.0,0,/mnt/data0/zjh_data/Embodied_Proj/experiments/vla_cache_semantic_static/semantic_static_bowl_between_e5_20260605_112103/logs/EVAL-libero_spatial-openvla-2026_06_05-11_25_26--semantic_static_bowl_between_e5_20260605_112103-original_cache.txt

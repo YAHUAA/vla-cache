@@ -1,0 +1,47 @@
+{
+  "camera_name": "agentview",
+  "episodes": [
+    {
+      "action_steps": 89,
+      "avg_candidates": null,
+      "avg_reuse_ratio": null,
+      "avg_shift_l1_px": null,
+      "avg_shift_score": null,
+      "cache_steps": 0,
+      "episode_idx": 0,
+      "kv_remap_steps": 0,
+      "latency_ms_mean": 357.5830135672364,
+      "latency_ms_p50": 345.0067760422826,
+      "latency_ms_p90": 356.0233404859901,
+      "latency_ms_std": 63.61324800969824,
+      "success": true,
+      "task_description": "pick up the black bowl between the plate and the ramekin and place it on the plate",
+      "task_id": 0,
+      "task_name": "pick_up_the_black_bowl_between_the_plate_and_the_ramekin_and_place_it_on_the_plate"
+    }
+  ],
+  "local_log_filepath": "/home/zjh/Project/Embodied_Proj/vla-cache/Experiments/openvla_libero_mc_cache/outputs/semantic_static/semantic_static_bowl_between_e1_video_20260605_113856/logs/EVAL-libero_spatial-openvla-2026_06_05-11_39_15--semantic_static_bowl_between_e1_video_20260605_113856-full_recompute.txt",
+  "mc_enable_kv_remap": false,
+  "num_trials_per_task": 1,
+  "run_id": "EVAL-libero_spatial-openvla-2026_06_05-11_39_15--semantic_static_bowl_between_e1_video_20260605_113856-full_recompute",
+  "seed": 7,
+  "task_ids": [
+    0
+  ],
+  "task_suite_name": "libero_spatial",
+  "tasks": [
+    {
+      "episodes": 1,
+      "success_rate": 1.0,
+      "successes": 1,
+      "task_description": "pick up the black bowl between the plate and the ramekin and place it on the plate",
+      "task_id": 0,
+      "task_name": "pick_up_the_black_bowl_between_the_plate_and_the_ramekin_and_place_it_on_the_plate"
+    }
+  ],
+  "total_episodes": 1,
+  "total_success_rate": 1.0,
+  "total_successes": 1,
+  "use_motion_compensated_cache": false,
+  "use_vla_cache": false
+}

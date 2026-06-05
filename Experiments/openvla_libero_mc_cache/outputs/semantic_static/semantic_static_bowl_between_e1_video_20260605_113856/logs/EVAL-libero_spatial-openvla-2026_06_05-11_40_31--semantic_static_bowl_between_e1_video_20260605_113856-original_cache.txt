@@ -1,0 +1,15 @@
+Task suite: libero_spatial
+Camera: agentview
+Task IDs: [0]
+
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+Starting episode 1...
+Saved rollout MP4 at path /mnt/data0/zjh_data/Embodied_Proj/experiments/vla_cache_semantic_static/semantic_static_bowl_between_e1_video_20260605_113856/rollouts/original_cache/2026_06_05-11_40_31--episode=1--success=True--task=pick_up_the_black_bowl_between_the_plate_and_the_r.mp4
+Success: True
+# episodes completed so far: 1
+# successes: 1 (100.0%)
+MC/VLA-Cache stats: steps=79, avg_reuse_ratio=0.319, avg_candidates=130.0, kv_remap_steps=0, avg_shift_l1_px=0.00, avg_shift_score=0.000
+Action latency ms: mean=339.5, p50=321.7, p90=361.9, std=86.2, n=80
+Current task success rate: 1.0
+Current total success rate: 1.0
+Wrote summary JSON to /home/zjh/Project/Embodied_Proj/vla-cache/Experiments/openvla_libero_mc_cache/outputs/semantic_static/semantic_static_bowl_between_e1_video_20260605_113856/original_cache_summary.json

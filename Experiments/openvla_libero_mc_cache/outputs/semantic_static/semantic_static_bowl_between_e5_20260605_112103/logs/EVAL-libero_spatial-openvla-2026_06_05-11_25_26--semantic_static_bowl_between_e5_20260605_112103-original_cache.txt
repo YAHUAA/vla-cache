@@ -1,0 +1,46 @@
+Task suite: libero_spatial
+Camera: agentview
+Task IDs: [0]
+
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+Starting episode 1...
+Success: True
+# episodes completed so far: 1
+# successes: 1 (100.0%)
+MC/VLA-Cache stats: steps=79, avg_reuse_ratio=0.319, avg_candidates=130.0, kv_remap_steps=0, avg_shift_l1_px=0.00, avg_shift_score=0.000
+Action latency ms: mean=404.7, p50=390.9, p90=395.4, std=77.0, n=80
+
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+Starting episode 2...
+Success: True
+# episodes completed so far: 2
+# successes: 2 (100.0%)
+MC/VLA-Cache stats: steps=174, avg_reuse_ratio=0.301, avg_candidates=130.0, kv_remap_steps=0, avg_shift_l1_px=0.00, avg_shift_score=0.000
+Action latency ms: mean=394.8, p50=391.1, p90=394.0, std=21.0, n=175
+
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+Starting episode 3...
+Success: True
+# episodes completed so far: 3
+# successes: 3 (100.0%)
+MC/VLA-Cache stats: steps=88, avg_reuse_ratio=0.343, avg_candidates=130.0, kv_remap_steps=0, avg_shift_l1_px=0.00, avg_shift_score=0.000
+Action latency ms: mean=333.6, p50=328.1, p90=334.2, std=21.1, n=89
+
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+Starting episode 4...
+Success: True
+# episodes completed so far: 4
+# successes: 4 (100.0%)
+MC/VLA-Cache stats: steps=109, avg_reuse_ratio=0.300, avg_candidates=130.0, kv_remap_steps=0, avg_shift_l1_px=0.00, avg_shift_score=0.000
+Action latency ms: mean=329.0, p50=327.7, p90=329.7, std=10.6, n=110
+
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+Starting episode 5...
+Success: True
+# episodes completed so far: 5
+# successes: 5 (100.0%)
+MC/VLA-Cache stats: steps=75, avg_reuse_ratio=0.331, avg_candidates=130.0, kv_remap_steps=0, avg_shift_l1_px=0.00, avg_shift_score=0.000
+Action latency ms: mean=329.8, p50=328.1, p90=331.0, std=13.0, n=76
+Current task success rate: 1.0
+Current total success rate: 1.0
+Wrote summary JSON to /mnt/data0/zjh_data/Embodied_Proj/experiments/vla_cache_semantic_static/semantic_static_bowl_between_e5_20260605_112103/original_cache_summary.json

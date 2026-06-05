@@ -1,0 +1,41 @@
+Task suite: libero_spatial
+Camera: agentview
+Task IDs: [0]
+
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+Starting episode 1...
+Success: True
+# episodes completed so far: 1
+# successes: 1 (100.0%)
+Action latency ms: mean=356.3, p50=347.6, p90=350.3, std=71.1, n=89
+
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+Starting episode 2...
+Success: True
+# episodes completed so far: 2
+# successes: 2 (100.0%)
+Action latency ms: mean=350.2, p50=350.0, p90=352.2, std=2.4, n=152
+
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+Starting episode 3...
+Success: True
+# episodes completed so far: 3
+# successes: 3 (100.0%)
+Action latency ms: mean=354.1, p50=349.2, p90=354.0, std=18.4, n=87
+
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+Starting episode 4...
+Success: True
+# episodes completed so far: 4
+# successes: 4 (100.0%)
+Action latency ms: mean=351.9, p50=348.3, p90=351.2, std=16.5, n=109
+
+Task: pick up the black bowl between the plate and the ramekin and place it on the plate
+Starting episode 5...
+Success: True
+# episodes completed so far: 5
+# successes: 5 (100.0%)
+Action latency ms: mean=354.3, p50=349.2, p90=351.5, std=20.0, n=71
+Current task success rate: 1.0
+Current total success rate: 1.0
+Wrote summary JSON to /mnt/data0/zjh_data/Embodied_Proj/experiments/vla_cache_semantic_static/semantic_static_bowl_between_e5_20260605_112103/full_recompute_summary.json

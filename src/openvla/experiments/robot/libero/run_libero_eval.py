@@ -20,8 +20,10 @@ Usage:
 import os
 import sys
 import time
+import json
 from dataclasses import dataclass
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Optional, Union
 
 import imageio
@@ -101,8 +103,57 @@ class GenerateConfig:
 
     seed: int = 7                                    # Random Seed (for reproducibility)
     num_tasks_to_eval: Optional[int] = None           # Optional smoke-test limit for task count
+    task_ids: Optional[str] = None                    # Optional explicit task ids, e.g. "0", "0,3,5", "0-4", or "all"
+    custom_bddl_file: Optional[str] = None             # Optional absolute or repo-relative BDDL file for one custom task
+    custom_init_states_file: Optional[str] = None      # Optional torch-saved init states for the custom BDDL task
+    custom_task_language: Optional[str] = None         # Optional language override for the custom BDDL task
+    custom_task_name: str = "custom_libero_task"       # Name to use in summaries for a custom BDDL task
+    custom_max_steps: Optional[int] = None             # Optional max action horizon for a custom BDDL task
+    save_rollout_videos: bool = True                  # Whether to save per-episode MP4 rollout videos
+    rollout_dir: Optional[str] = None                 # Optional directory for rollout videos
+    summary_json_path: Optional[str] = None            # Optional machine-readable eval summary path
 
     # fmt: on
+
+
+def parse_task_ids(task_ids: Optional[str], n_tasks: int) -> Optional[list[int]]:
+    if task_ids is None:
+        return None
+    value = str(task_ids).strip()
+    if not value:
+        return None
+    if value.lower() == "all":
+        return list(range(n_tasks))
+
+    selected: list[int] = []
+    for chunk in value.split(","):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        if "-" in chunk:
+            start_s, end_s = chunk.split("-", 1)
+            start, end = int(start_s), int(end_s)
+            if end < start:
+                raise ValueError(f"Invalid descending task id range: {chunk!r}")
+            selected.extend(range(start, end + 1))
+        else:
+            selected.append(int(chunk))
+
+    invalid = [idx for idx in selected if idx < 0 or idx >= n_tasks]
+    if invalid:
+        raise ValueError(f"Task id(s) out of range for suite with {n_tasks} tasks: {invalid}")
+    return list(dict.fromkeys(selected))
+
+
+def read_bddl_language(bddl_file: Path) -> str:
+    for line in bddl_file.read_text().splitlines():
+        stripped = line.strip()
+        if stripped.startswith("(:language"):
+            language = stripped[len("(:language") :].strip()
+            if language.endswith(")"):
+                language = language[:-1].strip()
+            return language
+    return bddl_file.stem.replace("_", " ")
 
 
 @draccus.wrap()
@@ -111,6 +162,9 @@ def eval_libero(cfg: GenerateConfig) -> None:
     if "image_aug" in cfg.pretrained_checkpoint:
         assert cfg.center_crop, "Expecting `center_crop==True` because model was trained with image augmentations!"
     assert not (cfg.load_in_8bit and cfg.load_in_4bit), "Cannot use both 8-bit and 4-bit quantization!"
+    use_custom_task = cfg.custom_bddl_file is not None
+    if use_custom_task:
+        assert cfg.custom_init_states_file is not None, "cfg.custom_init_states_file is required for custom BDDL eval!"
 
     # Set random seed
     set_seed_everywhere(cfg.seed)
@@ -151,31 +205,71 @@ def eval_libero(cfg: GenerateConfig) -> None:
             name=run_id,
         )
 
-    # Initialize LIBERO task suite
-    benchmark_dict = benchmark.get_benchmark_dict()
-    task_suite = benchmark_dict[cfg.task_suite_name]()
-    num_tasks_in_suite = task_suite.n_tasks
+    # Initialize LIBERO task suite, or a one-task custom BDDL suite.
+    custom_bddl_file = Path(cfg.custom_bddl_file).expanduser().resolve() if use_custom_task else None
+    custom_init_states_file = (
+        Path(cfg.custom_init_states_file).expanduser().resolve() if use_custom_task else None
+    )
+    if use_custom_task:
+        task_suite = None
+        custom_language = cfg.custom_task_language or read_bddl_language(custom_bddl_file)
+        custom_task = SimpleNamespace(
+            name=cfg.custom_task_name,
+            language=custom_language,
+            problem="LiberoCustom",
+            problem_folder="",
+            bddl_file=str(custom_bddl_file),
+            init_states_file=str(custom_init_states_file),
+        )
+        num_tasks_in_suite = 1
+    else:
+        benchmark_dict = benchmark.get_benchmark_dict()
+        task_suite = benchmark_dict[cfg.task_suite_name]()
+        custom_task = None
+        num_tasks_in_suite = task_suite.n_tasks
     print(f"Task suite: {cfg.task_suite_name}")
     print(f"Camera: {cfg.camera_name}")
     log_file.write(f"Task suite: {cfg.task_suite_name}\n")
     log_file.write(f"Camera: {cfg.camera_name}\n")
+    if use_custom_task:
+        print(f"Custom BDDL: {custom_bddl_file}")
+        print(f"Custom init states: {custom_init_states_file}")
+        log_file.write(f"Custom BDDL: {custom_bddl_file}\n")
+        log_file.write(f"Custom init states: {custom_init_states_file}\n")
 
     # Get expected image dimensions
     resize_size = get_image_resize_size(cfg)
 
     # Start evaluation
     total_episodes, total_successes = 0, 0
-    if cfg.num_tasks_to_eval is None:
+    explicit_task_ids = parse_task_ids(cfg.task_ids, num_tasks_in_suite)
+    if explicit_task_ids is not None:
+        task_ids = explicit_task_ids
+    elif cfg.num_tasks_to_eval is None:
         task_ids = range(num_tasks_in_suite)
     else:
         task_ids = range(min(num_tasks_in_suite, cfg.num_tasks_to_eval))
 
+    task_ids = list(task_ids)
+    print(f"Task IDs: {task_ids}")
+    log_file.write(f"Task IDs: {task_ids}\n")
+
+    episode_summaries = []
+    task_summaries = []
+
     for task_id in tqdm.tqdm(task_ids):
         # Get task
-        task = task_suite.get_task(task_id)
+        task = custom_task if use_custom_task else task_suite.get_task(task_id)
 
-        # Get default LIBERO initial states
-        initial_states = task_suite.get_task_init_states(task_id)
+        # Get default LIBERO or custom initial states
+        if use_custom_task:
+            initial_states = torch.load(custom_init_states_file)
+        else:
+            initial_states = task_suite.get_task_init_states(task_id)
+        if cfg.num_trials_per_task > len(initial_states):
+            raise ValueError(
+                f"Requested {cfg.num_trials_per_task} trials, but only {len(initial_states)} init states are available"
+            )
 
         # Initialize LIBERO environment and task description
         env, task_description = get_libero_env(
@@ -210,9 +304,12 @@ def eval_libero(cfg: GenerateConfig) -> None:
             episode_mc_shift_abs = 0.0
             episode_mc_shift_score = 0.0
             episode_latency_ms = []
+            done = False
             
             
-            if cfg.task_suite_name == "libero_spatial":
+            if use_custom_task and cfg.custom_max_steps is not None:
+                max_steps = cfg.custom_max_steps
+            elif cfg.task_suite_name == "libero_spatial":
                 max_steps = 220  # longest training demo has 193 steps
             elif cfg.task_suite_name == "libero_object":
                 max_steps = 280  # longest training demo has 254 steps
@@ -310,9 +407,16 @@ def eval_libero(cfg: GenerateConfig) -> None:
             total_episodes += 1
 
             # Save a replay video of the episode
-            save_rollout_video(
-                replay_images_heatmap, total_episodes, success=done, task_description=task_description, log_file=log_file
-            )
+            rollout_video_path = None
+            if cfg.save_rollout_videos:
+                rollout_video_path = save_rollout_video(
+                    replay_images_heatmap,
+                    total_episodes,
+                    success=done,
+                    task_description=task_description,
+                    log_file=log_file,
+                    rollout_dir=cfg.rollout_dir,
+                )
 
             # Save a replay video of the episode
             # Log current results
@@ -358,6 +462,30 @@ def eval_libero(cfg: GenerateConfig) -> None:
                     f"mean={latency.mean():.1f}, p50={np.percentile(latency, 50):.1f}, "
                     f"p90={np.percentile(latency, 90):.1f}, std={latency.std():.1f}, n={latency.size}\n"
                 )
+            episode_summary = {
+                "task_id": int(task_id),
+                "task_name": task.name,
+                "task_description": task_description,
+                "episode_idx": int(episode_idx),
+                "success": bool(done),
+                "action_steps": int(len(episode_latency_ms)),
+                "cache_steps": int(episode_mc_steps),
+                "rollout_video_path": rollout_video_path,
+                "avg_reuse_ratio": (
+                    float(episode_mc_reuse_tokens / (episode_mc_steps * 256)) if episode_mc_steps > 0 else None
+                ),
+                "avg_candidates": float(episode_mc_candidates / episode_mc_steps) if episode_mc_steps > 0 else None,
+                "kv_remap_steps": int(episode_mc_kv_remap_steps),
+                "avg_shift_l1_px": float(episode_mc_shift_abs / episode_mc_steps) if episode_mc_steps > 0 else None,
+                "avg_shift_score": float(episode_mc_shift_score / episode_mc_steps) if episode_mc_steps > 0 else None,
+            }
+            if episode_latency_ms:
+                latency = np.asarray(episode_latency_ms, dtype=np.float64)
+                episode_summary["latency_ms_mean"] = float(latency.mean())
+                episode_summary["latency_ms_p50"] = float(np.percentile(latency, 50))
+                episode_summary["latency_ms_p90"] = float(np.percentile(latency, 90))
+                episode_summary["latency_ms_std"] = float(latency.std())
+            episode_summaries.append(episode_summary)
             log_file.flush()
 
         # Log final results
@@ -365,6 +493,16 @@ def eval_libero(cfg: GenerateConfig) -> None:
         print(f"Current total success rate: {float(total_successes) / float(total_episodes)}")
         log_file.write(f"Current task success rate: {float(task_successes) / float(task_episodes)}\n")
         log_file.write(f"Current total success rate: {float(total_successes) / float(total_episodes)}\n")
+        task_summaries.append(
+            {
+                "task_id": int(task_id),
+                "task_name": task.name,
+                "task_description": task_description,
+                "episodes": int(task_episodes),
+                "successes": int(task_successes),
+                "success_rate": float(task_successes) / float(task_episodes),
+            }
+        )
         log_file.flush()
         if cfg.use_wandb:
             wandb.log(
@@ -373,6 +511,39 @@ def eval_libero(cfg: GenerateConfig) -> None:
                     f"num_episodes/{task_description}": task_episodes,
                 }
             )
+
+    if cfg.summary_json_path is not None:
+        summary_json_path = Path(cfg.summary_json_path).expanduser()
+        summary_json_path.parent.mkdir(parents=True, exist_ok=True)
+        with summary_json_path.open("w") as f:
+            json.dump(
+                {
+                    "run_id": run_id,
+                    "task_suite_name": cfg.task_suite_name,
+                    "task_ids": task_ids,
+                    "custom_bddl_file": str(custom_bddl_file) if use_custom_task else None,
+                    "custom_init_states_file": str(custom_init_states_file) if use_custom_task else None,
+                    "custom_task_language": custom_task.language if use_custom_task else None,
+                    "camera_name": cfg.camera_name,
+                    "use_vla_cache": cfg.use_vla_cache,
+                    "use_motion_compensated_cache": cfg.use_motion_compensated_cache,
+                    "mc_enable_kv_remap": cfg.mc_enable_kv_remap,
+                    "num_trials_per_task": cfg.num_trials_per_task,
+                    "seed": cfg.seed,
+                    "total_episodes": int(total_episodes),
+                    "total_successes": int(total_successes),
+                    "total_success_rate": float(total_successes) / float(total_episodes) if total_episodes else 0.0,
+                    "tasks": task_summaries,
+                    "episodes": episode_summaries,
+                    "local_log_filepath": local_log_filepath,
+                },
+                f,
+                indent=2,
+                sort_keys=True,
+            )
+        print(f"Wrote summary JSON to {summary_json_path}")
+        log_file.write(f"Wrote summary JSON to {summary_json_path}\n")
+        log_file.flush()
 
     # Save local log file
     log_file.close()

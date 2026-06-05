@@ -1,0 +1,16 @@
+Task suite: libero_spatial
+Camera: agentview
+Custom BDDL: /home/zjh/Project/Embodied_Proj/vla-cache/Experiments/openvla_libero_mc_cache/custom_tasks/pick_black_bowl_next_to_ramekin_place_between_plate_ramekin_separated.bddl
+Custom init states: /home/zjh/Project/Embodied_Proj/vla-cache/Experiments/openvla_libero_mc_cache/custom_tasks/init_states/pick_black_bowl_next_to_ramekin_place_between_plate_ramekin_separated.pruned_init
+Task IDs: [0]
+
+Task: Pick up the black bowl next to the ramekin and place it between the plate and the ramekin
+Starting episode 1...
+Saved rollout MP4 at path /home/zjh/Project/Embodied_Proj/vla-cache/Experiments/openvla_libero_mc_cache/outputs/custom_bowl_between/custom_pick_next_to_ramekin_place_between_separated_e1_video_offline_20260605_133730/rollouts/full_recompute/2026_06_05-13_37_49--episode=1--success=False--task=pick_up_the_black_bowl_next_to_the_ramekin_and_pla.mp4
+Success: False
+# episodes completed so far: 1
+# successes: 0 (0.0%)
+Action latency ms: mean=355.8, p50=349.5, p90=352.9, std=51.9, n=220
+Current task success rate: 0.0
+Current total success rate: 0.0
+Wrote summary JSON to /home/zjh/Project/Embodied_Proj/vla-cache/Experiments/openvla_libero_mc_cache/outputs/custom_bowl_between/custom_pick_next_to_ramekin_place_between_separated_e1_video_offline_20260605_133730/full_recompute_summary.json

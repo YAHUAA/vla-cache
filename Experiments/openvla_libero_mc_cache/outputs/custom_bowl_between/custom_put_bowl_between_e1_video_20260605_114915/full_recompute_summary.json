@@ -1,0 +1,51 @@
+{
+  "camera_name": "agentview",
+  "custom_bddl_file": "/home/zjh/Project/Embodied_Proj/vla-cache/Experiments/openvla_libero_mc_cache/custom_tasks/put_black_bowl_between_plate_and_ramekin.bddl",
+  "custom_init_states_file": "/home/zjh/Project/Embodied_Proj/vla-cache/Experiments/openvla_libero_mc_cache/custom_tasks/init_states/put_black_bowl_between_plate_and_ramekin_from_next_to_ramekin.pruned_init",
+  "custom_task_language": "Put the black bowl between the plate and the ramekin",
+  "episodes": [
+    {
+      "action_steps": 220,
+      "avg_candidates": null,
+      "avg_reuse_ratio": null,
+      "avg_shift_l1_px": null,
+      "avg_shift_score": null,
+      "cache_steps": 0,
+      "episode_idx": 0,
+      "kv_remap_steps": 0,
+      "latency_ms_mean": 404.1312594390051,
+      "latency_ms_p50": 404.7169934492558,
+      "latency_ms_p90": 410.29381188564,
+      "latency_ms_std": 39.963537350750784,
+      "rollout_video_path": "/home/zjh/Project/Embodied_Proj/vla-cache/Experiments/openvla_libero_mc_cache/outputs/custom_bowl_between/custom_put_bowl_between_e1_video_20260605_114915/rollouts/full_recompute/2026_06_05-11_49_34--episode=1--success=False--task=put_the_black_bowl_between_the_plate_and_the_ramek.mp4",
+      "success": false,
+      "task_description": "Put the black bowl between the plate and the ramekin",
+      "task_id": 0,
+      "task_name": "put_black_bowl_between_plate_and_ramekin"
+    }
+  ],
+  "local_log_filepath": "/home/zjh/Project/Embodied_Proj/vla-cache/Experiments/openvla_libero_mc_cache/outputs/custom_bowl_between/custom_put_bowl_between_e1_video_20260605_114915/logs/EVAL-libero_spatial-openvla-2026_06_05-11_49_34--custom_put_bowl_between_e1_video_20260605_114915-full_recompute.txt",
+  "mc_enable_kv_remap": false,
+  "num_trials_per_task": 1,
+  "run_id": "EVAL-libero_spatial-openvla-2026_06_05-11_49_34--custom_put_bowl_between_e1_video_20260605_114915-full_recompute",
+  "seed": 7,
+  "task_ids": [
+    0
+  ],
+  "task_suite_name": "libero_spatial",
+  "tasks": [
+    {
+      "episodes": 1,
+      "success_rate": 0.0,
+      "successes": 0,
+      "task_description": "Put the black bowl between the plate and the ramekin",
+      "task_id": 0,
+      "task_name": "put_black_bowl_between_plate_and_ramekin"
+    }
+  ],
+  "total_episodes": 1,
+  "total_success_rate": 0.0,
+  "total_successes": 0,
+  "use_motion_compensated_cache": false,
+  "use_vla_cache": false
+}

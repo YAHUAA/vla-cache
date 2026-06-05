@@ -1,0 +1,13 @@
+{
+  "bddl_file": "/home/zjh/Project/Embodied_Proj/vla-cache/Experiments/openvla_libero_mc_cache/custom_tasks/pick_black_bowl_next_to_ramekin_place_between_plate_ramekin_minimal.bddl",
+  "camera_name": "agentview",
+  "language": "Pick up the black bowl next to the ramekin and place it between the plate and the ramekin",
+  "num_states": 50,
+  "seed": 23,
+  "settle_steps": 10,
+  "skipped_reset_successes": 0,
+  "state_shape": [
+    50,
+    58
+  ]
+}

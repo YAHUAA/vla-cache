@@ -1,0 +1,51 @@
+{
+  "camera_name": "agentview",
+  "custom_bddl_file": "/home/zjh/Project/Embodied_Proj/vla-cache/Experiments/openvla_libero_mc_cache/custom_tasks/pick_black_bowl_next_to_ramekin_place_between_plate_ramekin_minimal.bddl",
+  "custom_init_states_file": "/home/zjh/Project/Embodied_Proj/vla-cache/Experiments/openvla_libero_mc_cache/custom_tasks/init_states/pick_black_bowl_next_to_ramekin_place_between_plate_ramekin_minimal.pruned_init",
+  "custom_task_language": "Pick up the black bowl next to the ramekin and place it between the plate and the ramekin",
+  "episodes": [
+    {
+      "action_steps": 220,
+      "avg_candidates": null,
+      "avg_reuse_ratio": null,
+      "avg_shift_l1_px": null,
+      "avg_shift_score": null,
+      "cache_steps": 0,
+      "episode_idx": 0,
+      "kv_remap_steps": 0,
+      "latency_ms_mean": 410.38607123138553,
+      "latency_ms_p50": 406.2618832103908,
+      "latency_ms_p90": 408.8238255586475,
+      "latency_ms_std": 49.336301852244894,
+      "rollout_video_path": "/home/zjh/Project/Embodied_Proj/vla-cache/Experiments/openvla_libero_mc_cache/outputs/custom_bowl_between/custom_pick_next_to_ramekin_place_between_minimal_e1_video_20260605_134913/rollouts/full_recompute/2026_06_05-13_49_32--episode=1--success=False--task=pick_up_the_black_bowl_next_to_the_ramekin_and_pla.mp4",
+      "success": false,
+      "task_description": "Pick up the black bowl next to the ramekin and place it between the plate and the ramekin",
+      "task_id": 0,
+      "task_name": "pick_black_bowl_next_to_ramekin_place_between_plate_ramekin_minimal"
+    }
+  ],
+  "local_log_filepath": "/home/zjh/Project/Embodied_Proj/vla-cache/Experiments/openvla_libero_mc_cache/outputs/custom_bowl_between/custom_pick_next_to_ramekin_place_between_minimal_e1_video_20260605_134913/logs/EVAL-libero_spatial-openvla-2026_06_05-13_49_32--custom_pick_next_to_ramekin_place_between_minimal_e1_video_20260605_134913-full_recompute.txt",
+  "mc_enable_kv_remap": false,
+  "num_trials_per_task": 1,
+  "run_id": "EVAL-libero_spatial-openvla-2026_06_05-13_49_32--custom_pick_next_to_ramekin_place_between_minimal_e1_video_20260605_134913-full_recompute",
+  "seed": 7,
+  "task_ids": [
+    0
+  ],
+  "task_suite_name": "libero_spatial",
+  "tasks": [
+    {
+      "episodes": 1,
+      "success_rate": 0.0,
+      "successes": 0,
+      "task_description": "Pick up the black bowl next to the ramekin and place it between the plate and the ramekin",
+      "task_id": 0,
+      "task_name": "pick_black_bowl_next_to_ramekin_place_between_plate_ramekin_minimal"
+    }
+  ],
+  "total_episodes": 1,
+  "total_success_rate": 0.0,
+  "total_successes": 0,
+  "use_motion_compensated_cache": false,
+  "use_vla_cache": false
+}

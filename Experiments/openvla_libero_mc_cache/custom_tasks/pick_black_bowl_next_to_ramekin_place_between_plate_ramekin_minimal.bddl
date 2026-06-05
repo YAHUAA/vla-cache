@@ -1,0 +1,61 @@
+(define (problem LIBERO_Tabletop_Manipulation)
+  (:domain robosuite)
+  (:language Pick up the black bowl next to the ramekin and place it between the plate and the ramekin)
+    (:regions
+      (plate_region
+          (:target main_table)
+          (:ranges (
+              (0.12 0.19 0.14 0.21)
+            )
+          )
+      )
+      (between_plate_ramekin_region
+          (:target main_table)
+          (:ranges (
+              (-0.12 0.16 -0.04 0.24)
+            )
+          )
+      )
+      (ramekin_region
+          (:target main_table)
+          (:ranges (
+              (-0.30 0.19 -0.28 0.21)
+            )
+          )
+      )
+      (next_to_ramekin_region
+          (:target main_table)
+          (:ranges (
+              (-0.30 0.31 -0.28 0.33)
+            )
+          )
+      )
+    )
+
+  (:fixtures
+    main_table - table
+  )
+
+  (:objects
+    akita_black_bowl_1 - akita_black_bowl
+    glazed_rim_porcelain_ramekin_1 - glazed_rim_porcelain_ramekin
+    plate_1 - plate
+  )
+
+  (:obj_of_interest
+    akita_black_bowl_1
+    plate_1
+    glazed_rim_porcelain_ramekin_1
+  )
+
+  (:init
+    (On akita_black_bowl_1 main_table_next_to_ramekin_region)
+    (On plate_1 main_table_plate_region)
+    (On glazed_rim_porcelain_ramekin_1 main_table_ramekin_region)
+  )
+
+  (:goal
+    (And (On akita_black_bowl_1 main_table_between_plate_ramekin_region))
+  )
+
+)
